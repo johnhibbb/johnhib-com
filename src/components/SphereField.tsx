@@ -86,9 +86,9 @@ function makeParticle(x?: number, y?: number, z?: number, cooldown = 0, initialV
 }
 
 // Unproject screen point → 3D world point at z=0 plane
-function unproject(sx: number, sy: number, cx: number, cy: number, dpr: number): [number, number, number] {
-  const wx = (sx - cx) / (CONFIG.SCREEN_SCALE * dpr);
-  const wy = (sy - cy) / (CONFIG.SCREEN_SCALE * dpr);
+function unproject(sx: number, sy: number, cx: number, cy: number, dpr: number, scale: number): [number, number, number] {
+  const wx = (sx - cx) / (scale * dpr);
+  const wy = (sy - cy) / (scale * dpr);
   return [wx, wy, 0];
 }
 
@@ -102,10 +102,11 @@ export default function SphereField() {
     if (!canvas || !wrapper) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+    const ctxEl = ctx; // stable non-null reference for closures
 
     const {
       COUNT, MAX_COUNT, ROT_Y, ROT_X, WANDER, REST_SPEED,
-      BASE_SIZE, OPACITY, FOV, SPHERE_R, SCREEN_SCALE,
+      BASE_SIZE, OPACITY, FOV, SPHERE_R,
       ATTRACT_RADIUS, ATTRACT_FORCE, ORBIT_DIST, PASSIVE_DAMPING,
       REPEL_FORCE, REPEL_RADIUS,
       BURST_COUNT, BURST_SPEED, BURST_COOLDOWN, SPIN_ADD, SPIN_DECAY,
@@ -127,14 +128,16 @@ export default function SphereField() {
     let hintOpacity = 1;
 
     let rafStarted = false;
+    const canvasEl = canvas;   // stable non-null reference for closures
+    const wrapperEl = wrapper; // stable non-null reference for closures
 
     function resize() {
-      const w = canvas.offsetWidth;
-      const h = canvas.offsetHeight;
+      const w = canvasEl.offsetWidth;
+      const h = canvasEl.offsetHeight;
       if (w === 0 || h === 0) return; // not laid out yet — wait for observer
       const dpr = window.devicePixelRatio || 1;
-      canvas.width = w * dpr;
-      canvas.height = h * dpr;
+      canvasEl.width = w * dpr;
+      canvasEl.height = h * dpr;
       // Start draw loop only once we have real dimensions
       if (!rafStarted) {
         rafStarted = true;
@@ -143,22 +146,36 @@ export default function SphereField() {
     }
 
     const ro = new ResizeObserver(resize);
-    ro.observe(canvas);
+    ro.observe(canvasEl);
 
-    function getSphereCenter(): [number, number] {
+    // Returns [cx, cy, effectiveScreenScale]
+    // Scale holds at CONFIG.SCREEN_SCALE until window hits 45% of 1440px reference (~648px CSS),
+    // then shrinks proportionally down to a floor of 55 at very narrow widths.
+    function getSphereCenter(): [number, number, number] {
       const dpr = window.devicePixelRatio || 1;
-      const w = canvas.width, h = canvas.height;
-      const isNarrow = w / dpr < 768;
+      const w = canvasEl.width, h = canvasEl.height;
+      const cssW = w / dpr;
+      const isNarrow = cssW < 768;
+
+      const BREAKPOINT = 1440 * 0.45; // 648px — sphere starts shrinking below this
+      const SCALE_MAX  = CONFIG.SCREEN_SCALE; // 105
+      // Floor = scale at 430px (iPhone 16 Pro Max — the hard stop)
+      const SCALE_MIN  = Math.round(SCALE_MAX * (430 / BREAKPOINT)); // ≈ 70
+      const effectiveScale = cssW >= BREAKPOINT
+        ? SCALE_MAX
+        : Math.max(SCALE_MIN, SCALE_MAX * (cssW / BREAKPOINT));
+
       return [
         isNarrow ? w * 0.5 : w * 0.75,
         h * 0.5,
+        effectiveScale,
       ];
     }
 
     // ── Event Handlers ──────────────────────────────────────────────────────
 
     function onMouseMove(e: MouseEvent) {
-      const rect = canvas.getBoundingClientRect();
+      const rect = canvasEl.getBoundingClientRect();
       const dpr = window.devicePixelRatio || 1;
       const cssX = e.clientX - rect.left;
       const cssY = e.clientY - rect.top;
@@ -167,44 +184,44 @@ export default function SphereField() {
       mouse.active = true;
 
       // Switch cursor to crosshair only when inside sphere radius
-      const [cx, cy] = getSphereCenter();
+      const [cx, cy, effScale] = getSphereCenter();
       const sphereCSSX = cx / dpr;
       const sphereCSSY = cy / dpr;
-      const sphereRadiusCSS = SPHERE_R * SCREEN_SCALE;
+      const sphereRadiusCSS = SPHERE_R * effScale;
       const dx = cssX - sphereCSSX;
       const dy = cssY - sphereCSSY;
       const dist = Math.sqrt(dx * dx + dy * dy);
-      wrapper.style.cursor = dist < sphereRadiusCSS ? 'crosshair' : 'default';
+      wrapperEl.style.cursor = dist < sphereRadiusCSS ? 'crosshair' : 'default';
     }
 
     function onMouseLeave() {
       mouse.active = false;
       framesSinceLeave = 0; // start the ramp
-      wrapper.style.cursor = 'default';
+      wrapperEl.style.cursor = 'default';
     }
 
     function onClick(e: MouseEvent) {
       if (e.button !== 0) return;
 
-      const rect = canvas.getBoundingClientRect();
+      const rect = canvasEl.getBoundingClientRect();
       const dpr = window.devicePixelRatio || 1;
       const cssX = e.clientX - rect.left;
       const cssY = e.clientY - rect.top;
 
       // Only spawn if click is inside the sphere area
-      const [cx2, cy2] = getSphereCenter();
+      const [cx2, cy2, effScale2] = getSphereCenter();
       const sphereCSSX = cx2 / dpr;
       const sphereCSSY = cy2 / dpr;
       const dx0 = cssX - sphereCSSX;
       const dy0 = cssY - sphereCSSY;
-      if (Math.sqrt(dx0 * dx0 + dy0 * dy0) > SPHERE_R * SCREEN_SCALE) return;
+      if (Math.sqrt(dx0 * dx0 + dy0 * dy0) > SPHERE_R * effScale2) return;
 
       interacted = true;
 
       const sx = cssX * dpr;
       const sy = cssY * dpr;
-      const [cx, cy] = getSphereCenter();
-      const [wx, wy, wz] = unproject(sx, sy, cx, cy, dpr);
+      const [cx, cy, effScale] = getSphereCenter();
+      const [wx, wy, wz] = unproject(sx, sy, cx, cy, dpr, effScale);
 
       const toAdd = Math.min(BURST_COUNT, MAX_COUNT - particles.length);
       for (let i = 0; i < toAdd; i++) {
@@ -240,12 +257,12 @@ export default function SphereField() {
       e.preventDefault();
       interacted = true;
 
-      const rect = canvas.getBoundingClientRect();
+      const rect = canvasEl.getBoundingClientRect();
       const dpr = window.devicePixelRatio || 1;
       const sx = (e.clientX - rect.left) * dpr;
       const sy = (e.clientY - rect.top) * dpr;
-      const [cx, cy] = getSphereCenter();
-      const [wx, wy, wz] = unproject(sx, sy, cx, cy, dpr);
+      const [cx, cy, effScale] = getSphereCenter();
+      const [wx, wy, wz] = unproject(sx, sy, cx, cy, dpr, effScale);
 
       for (let i = 0; i < particles.length; i++) {
         const p = particles[i];
@@ -271,7 +288,7 @@ export default function SphereField() {
     // ── Touch Handlers ───────────────────────────────────────────────────────
 
     function touchToMouse(e: TouchEvent) {
-      const rect = canvas.getBoundingClientRect();
+      const rect = canvasEl.getBoundingClientRect();
       const dpr = window.devicePixelRatio || 1;
       const t = e.touches[0];
       if (!t) return;
@@ -287,22 +304,22 @@ export default function SphereField() {
       touchToMouse(e);
 
       // Burst if inside sphere
-      const rect = canvas.getBoundingClientRect();
+      const rect = canvasEl.getBoundingClientRect();
       const dpr = window.devicePixelRatio || 1;
       const t = e.touches[0];
       if (!t) return;
       const cssX = t.clientX - rect.left;
       const cssY = t.clientY - rect.top;
-      const [cx2, cy2] = getSphereCenter();
+      const [cx2, cy2, effScale2] = getSphereCenter();
       const dx0 = cssX - cx2 / dpr;
       const dy0 = cssY - cy2 / dpr;
-      if (Math.sqrt(dx0 * dx0 + dy0 * dy0) > SPHERE_R * SCREEN_SCALE) return;
+      if (Math.sqrt(dx0 * dx0 + dy0 * dy0) > SPHERE_R * effScale2) return;
 
       interacted = true;
       const sx = cssX * dpr;
       const sy = cssY * dpr;
-      const [cx, cy] = getSphereCenter();
-      const [wx, wy, wz] = unproject(sx, sy, cx, cy, dpr);
+      const [cx, cy, effScale] = getSphereCenter();
+      const [wx, wy, wz] = unproject(sx, sy, cx, cy, dpr, effScale);
 
       const toAdd = Math.min(BURST_COUNT, MAX_COUNT - particles.length);
       for (let i = 0; i < toAdd; i++) {
@@ -337,15 +354,15 @@ export default function SphereField() {
       framesSinceLeave = 0;
     }
 
-    canvas.addEventListener('mousemove', onMouseMove);
-    canvas.addEventListener('mouseleave', onMouseLeave);
-    canvas.addEventListener('click', onClick);
-    canvas.addEventListener('contextmenu', onContextMenu);
-    canvas.addEventListener('wheel', onWheel, { passive: true });
-    canvas.addEventListener('touchstart', onTouchStart, { passive: false });
-    canvas.addEventListener('touchmove', onTouchMove, { passive: false });
-    canvas.addEventListener('touchend', onTouchEnd);
-    canvas.addEventListener('touchcancel', onTouchEnd);
+    canvasEl.addEventListener('mousemove', onMouseMove);
+    canvasEl.addEventListener('mouseleave', onMouseLeave);
+    canvasEl.addEventListener('click', onClick);
+    canvasEl.addEventListener('contextmenu', onContextMenu);
+    canvasEl.addEventListener('wheel', onWheel, { passive: true });
+    canvasEl.addEventListener('touchstart', onTouchStart, { passive: false });
+    canvasEl.addEventListener('touchmove', onTouchMove, { passive: false });
+    canvasEl.addEventListener('touchend', onTouchEnd);
+    canvasEl.addEventListener('touchcancel', onTouchEnd);
 
     // ── Draw Loop ────────────────────────────────────────────────────────────
 
@@ -353,10 +370,10 @@ export default function SphereField() {
 
     function draw() {
       const dpr = window.devicePixelRatio || 1;
-      const w = canvas.width, h = canvas.height;
-      const [cx, cy] = getSphereCenter();
+      const w = canvasEl.width, h = canvasEl.height;
+      const [cx, cy, effScale] = getSphereCenter();
 
-      ctx.clearRect(0, 0, w, h);
+      ctxEl.clearRect(0, 0, w, h);
 
       // Decay spin boost
       spinBoostY *= SPIN_DECAY;
@@ -380,11 +397,11 @@ export default function SphereField() {
       // Mouse in world space (for attraction)
       let mwx = 0, mwy = 0, mwz = 0;
       if (mouse.active) {
-        [mwx, mwy, mwz] = unproject(mouse.x, mouse.y, cx, cy, dpr);
+        [mwx, mwy, mwz] = unproject(mouse.x, mouse.y, cx, cy, dpr, effScale);
         lastMW.x = mwx; lastMW.y = mwy; lastMW.z = mwz;
       }
 
-      ctx.fillStyle = '#ffffff';
+      ctxEl.fillStyle = '#ffffff';
 
       for (let i = 0; i < particles.length; i++) {
         const p = particles[i];
@@ -498,21 +515,21 @@ export default function SphereField() {
         if (depth <= 0) continue;
         const scale = FOV / depth;
 
-        const spx = p.x * scale * SCREEN_SCALE * dpr + cx;
-        const spy = p.y * scale * SCREEN_SCALE * dpr + cy;
+        const spx = p.x * scale * effScale * dpr + cx;
+        const spy = p.y * scale * effScale * dpr + cy;
 
         if (spx < -20 || spx > w + 20 || spy < -20 || spy > h + 20) continue;
 
         const size = Math.max(BASE_SIZE * scale * dpr, 0.3 * dpr);
         const alpha = Math.min(OPACITY * scale, OPACITY);
 
-        ctx.globalAlpha = alpha;
-        ctx.beginPath();
-        ctx.arc(spx, spy, size, 0, Math.PI * 2);
-        ctx.fill();
+        ctxEl.globalAlpha = alpha;
+        ctxEl.beginPath();
+        ctxEl.arc(spx, spy, size, 0, Math.PI * 2);
+        ctxEl.fill();
       }
 
-      ctx.globalAlpha = 1;
+      ctxEl.globalAlpha = 1;
 
       // ── Hint overlay ────────────────────────────────────────────────────
       if (hintOpacity > 0) {
@@ -520,15 +537,15 @@ export default function SphereField() {
           hintOpacity = Math.max(0, hintOpacity - 0.025);
         }
         const hintX = cx;
-        const hintY = cy + (SPHERE_R * SCREEN_SCALE * dpr * 0.72);
-        ctx.save();
-        ctx.globalAlpha = hintOpacity * 0.35;
-        ctx.font = `${11 * dpr}px "JetBrains Mono", ui-monospace, monospace`;
-        ctx.fillStyle = '#ffffff';
-        ctx.textAlign = 'center';
+        const hintY = cy + (SPHERE_R * effScale * dpr * 0.72);
+        ctxEl.save();
+        ctxEl.globalAlpha = hintOpacity * 0.35;
+        ctxEl.font = `${11 * dpr}px "JetBrains Mono", ui-monospace, monospace`;
+        ctxEl.fillStyle = '#ffffff';
+        ctxEl.textAlign = 'center';
         const isMobile = 'ontouchstart' in window;
-        ctx.fillText(isMobile ? 'tap  ·  drag' : 'click  ·  right-click  ·  scroll', hintX, hintY);
-        ctx.restore();
+        ctxEl.fillText(isMobile ? 'tap  ·  drag' : 'click  ·  right-click  ·  scroll', hintX, hintY);
+        ctxEl.restore();
       }
 
       raf = requestAnimationFrame(draw);
@@ -544,15 +561,15 @@ export default function SphereField() {
       cancelAnimationFrame(raf);
       clearTimeout(hintTimer);
       ro.disconnect();
-      canvas.removeEventListener('mousemove', onMouseMove);
-      canvas.removeEventListener('mouseleave', onMouseLeave);
-      canvas.removeEventListener('click', onClick);
-      canvas.removeEventListener('contextmenu', onContextMenu);
-      canvas.removeEventListener('wheel', onWheel);
-      canvas.removeEventListener('touchstart', onTouchStart);
-      canvas.removeEventListener('touchmove', onTouchMove);
-      canvas.removeEventListener('touchend', onTouchEnd);
-      canvas.removeEventListener('touchcancel', onTouchEnd);
+      canvasEl.removeEventListener('mousemove', onMouseMove);
+      canvasEl.removeEventListener('mouseleave', onMouseLeave);
+      canvasEl.removeEventListener('click', onClick);
+      canvasEl.removeEventListener('contextmenu', onContextMenu);
+      canvasEl.removeEventListener('wheel', onWheel);
+      canvasEl.removeEventListener('touchstart', onTouchStart);
+      canvasEl.removeEventListener('touchmove', onTouchMove);
+      canvasEl.removeEventListener('touchend', onTouchEnd);
+      canvasEl.removeEventListener('touchcancel', onTouchEnd);
     };
   }, []);
 

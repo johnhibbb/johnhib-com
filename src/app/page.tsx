@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import SphereField from "@/components/SphereField";
+import VersionBadge from "@/components/VersionBadge";
 
 // ─── Cycling subhead lines ─────────────────────────────────────────────────────
 const SUBHEADS = [
@@ -31,10 +32,14 @@ export default function Home() {
         overflow:      "hidden",
         display:       "flex",
         flexDirection: "column",
+        minWidth:      "430px",
       }}
     >
       {/* ── Sphere canvas ── */}
       <SphereField />
+
+      {/* ── Version badge ── */}
+      <VersionBadge />
 
       {/* ── Content layer ── */}
       <div
@@ -62,6 +67,7 @@ export default function Home() {
                 color:         "var(--text)",
                 margin:        0,
                 marginBottom:  "1.25rem",
+                textShadow:    "0 0 40px rgba(8,8,8,1), 0 0 80px rgba(8,8,8,0.9), 0 2px 4px rgba(0,0,0,0.8)",
               }}
             >
               John<br />Hibionada
@@ -94,13 +100,14 @@ export default function Home() {
                 style={{
                   fontFamily:    "var(--font-jetbrains)",
                   fontSize:      "clamp(0.85rem, 1.3vw, 1.4rem)",
-                  color:         "var(--muted)",
+                  color:         "var(--muted-light)",
                   letterSpacing: "0.01em",
                   margin:        0,
                   lineHeight:    1.5,
                   opacity:       visible ? 1 : 0,
                   transition:    "opacity 0.22s ease",
                   userSelect:    "none",
+                  textShadow:    "0 0 30px rgba(8,8,8,1), 0 0 60px rgba(8,8,8,0.8)",
                 }}
               >
                 {SUBHEADS[index]}
@@ -112,12 +119,13 @@ export default function Home() {
               style={{
                 fontFamily:    "var(--font-jetbrains)",
                 fontSize:      "clamp(0.75rem, 1.1vw, 1.15rem)",
-                color:         "var(--muted)",
+                color:         "var(--muted-light)",
                 letterSpacing: "0.08em",
                 margin:        0,
                 marginTop:     "0.6rem",
                 opacity:       0.45,
                 userSelect:    "none",
+                textShadow:    "0 0 30px rgba(8,8,8,1), 0 0 60px rgba(8,8,8,0.8)",
               }}
             >
               Los Angeles

@@ -1,0 +1,8 @@
+# hooks/
+# Custom React hooks for .com interactive features.
+# Add here as canvas components and AI projects grow.
+#
+# Convention:
+#   useCanvas.ts       — canvas lifecycle / resize / animation state
+#   useProject.ts      — project detail expand/collapse state
+#   useRateLimit.ts    — client-side rate limit feedback (when API routes land)
