@@ -12,7 +12,7 @@ interface PreviewState {
 export default function VersionBadge() {
   const [open, setOpen]       = useState(false);
   const [preview, setPreview] = useState<PreviewState | null>(null);
-  const current               = versions[versions.length - 1];
+  const current               = versions[0]; // newest first
 
   const handleMouseMove = useCallback((src: string, e: React.MouseEvent) => {
     setPreview({ src, x: e.clientX, y: e.clientY });
