@@ -8,6 +8,18 @@ export interface Version {
 
 export const versions: Version[] = [
   {
+    version: "1.2",
+    date: "2026-03-17",
+    title: "Sphere interaction polish",
+    notes: [
+      "Touch support added — touchstart/touchmove/touchend for mobile attraction",
+      "Increased mouse attraction force (ATTRACT_FORCE 0.0012 → 0.0025)",
+      "Soft speed cap via REST_SPEED — particles ease rather than snap",
+      "Soft zone pushed to 88% — wider calm radius before attraction kicks in",
+      "Center dispersal added — idle particles drift outward from origin",
+    ],
+  },
+  {
     version: "1.1",
     date: "2026-03-17",
     title: "Security hardening + file structure",
