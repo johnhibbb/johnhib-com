@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <rect width="32" height="32" fill="#0a0a0a"/>
+  <text
+    x="16"
+    y="26"
+    font-family="Georgia, 'Times New Roman', serif"
+    font-style="italic"
+    font-size="26"
+    font-weight="400"
+    fill="#ffffff"
+    text-anchor="middle"
+    dominant-baseline="auto"
+  >j</text>
+</svg>
