@@ -33,16 +33,16 @@ const securityHeaders = [
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
-      // Next.js needs inline scripts for hydration
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      // Next.js needs inline scripts for hydration; Vercel Analytics scripts
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://va.vercel-scripts.com",
       // Allow inline styles (used by the site's component styling)
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       // Google Fonts CDN
       "font-src 'self' https://fonts.gstatic.com",
       // Images: self + data URIs (for any base64 inline images)
       "img-src 'self' data:",
-      // No external connections for now
-      "connect-src 'self'",
+      // Allow connections to Vercel Analytics endpoints
+      "connect-src 'self' https://va.vercel-scripts.com",
       // Prevent framing from any origin
       "frame-ancestors 'none'",
       // Block all plugins (Flash etc.)
