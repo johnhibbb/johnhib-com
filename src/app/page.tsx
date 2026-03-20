@@ -6,7 +6,7 @@ import VersionBadge from "@/components/VersionBadge";
 
 // ─── Cycling subhead lines ─────────────────────────────────────────────────────
 const SUBHEADS = [
-  "Just a guy that takes technology seriously.",
+  "I create. That part was never negotiable.",
   "The tools keep changing. The questions stay the same.",
   "Still figuring out what to do with all of it.",
 ];
@@ -14,6 +14,7 @@ const SUBHEADS = [
 export default function Home() {
   const [index, setIndex]     = useState(0);
   const [visible, setVisible] = useState(true);
+  const [formation, setFormation] = useState(0);
 
   const handleSubheadClick = useCallback(() => {
     setVisible(false);
@@ -21,6 +22,10 @@ export default function Home() {
       setIndex(i => (i + 1) % SUBHEADS.length);
       setVisible(true);
     }, 220);
+  }, []);
+
+  const handleModeToggle = useCallback(() => {
+    setFormation(f => (f + 1) % 4);
   }, []);
 
   return (
@@ -36,10 +41,55 @@ export default function Home() {
       }}
     >
       {/* ── Sphere canvas ── */}
-      <SphereField />
+      <SphereField formation={formation} />
 
       {/* ── Version badge ── */}
       <VersionBadge />
+
+      {/* ── Mode Toggle Button ── */}
+      <div 
+        style={{
+          position: "absolute",
+          bottom: "clamp(2rem, 6vw, 6rem)",
+          left: "0",
+          right: "0",
+          display: "flex",
+          justifyContent: "center",
+          zIndex: 2,
+          pointerEvents: "none",
+        }}
+      >
+        <button
+          onClick={handleModeToggle}
+          style={{
+            background: "none",
+            border: "1px solid rgba(255,255,255,0.15)",
+            borderRadius: "50%",
+            width: "36px",
+            height: "36px",
+            cursor: "pointer",
+            pointerEvents: "auto",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            transition: "all 0.2s ease",
+            color: "rgba(255,255,255,0.4)",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = "rgba(255,255,255,0.4)";
+            e.currentTarget.style.color = "rgba(255,255,255,0.8)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)";
+            e.currentTarget.style.color = "rgba(255,255,255,0.4)";
+          }}
+          aria-label="Toggle formation mode"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.59-9.21l5.67-5.67"/>
+          </svg>
+        </button>
+      </div>
 
       {/* ── Content layer ── */}
       <div
@@ -146,19 +196,16 @@ export default function Home() {
             href="https://johnhib.tech"
             target="_blank"
             rel="noopener noreferrer"
+            className="tech-link"
             style={{
               fontFamily:     "var(--font-jetbrains)",
               fontSize:       "0.72rem",
-              color:          "var(--muted)",
               textDecoration: "none",
-              letterSpacing:  "0.04em",
-              transition:     "color 0.25s ease",
               lineHeight:     1,
             }}
-            onMouseEnter={e => ((e.target as HTMLElement).style.color = "var(--gold)")}
-            onMouseLeave={e => ((e.target as HTMLElement).style.color = "var(--muted)")}
           >
-            johnhib.tech →
+            <span className="tech-text">johnhib.tech</span>
+            <span className="tech-arrow">→</span>
           </a>
         </div>
       </div>
